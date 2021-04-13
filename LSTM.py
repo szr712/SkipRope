@@ -13,10 +13,10 @@ from tensorflow.python.keras.optimizer_v2.rmsprop import RMSprop
 
 from dataReader import load_dataset, load_dataset2
 
-modelName = "扩容_LSTM单层_"
+modelName = "扩容_LSTM双层_"
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-epochs, batch_size = 150, 32
+epochs, batch_size = 200, 32
 dataSet = "./data"
 className = "SpeedStability"
 logDir = "./logs"
@@ -38,9 +38,22 @@ def create_model():
     return model
 
 
+def create_model2():
+    model = Sequential()
+    model.add(LSTM(160, input_shape=(1200, 10), return_sequences=True))
+    model.add(Dropout(0.5))
+    model.add(LSTM(100))
+    model.add(Dropout(0.5))
+    model.add(Dense(96, activation='relu'))
+    model.add(Dense(1))
+    model.compile(loss='mse', optimizer=RMSprop(learning_rate=0.001), metrics=['mse', 'mae'])
+    model.summary()
+    return model
+
+
 def get_callbacks():
     return [
-        callbacks.EarlyStopping(monitor='val_mse', patience=20, restore_best_weights=True),
+        callbacks.EarlyStopping(monitor='mse', patience=40, restore_best_weights=True),
         callbacks.TensorBoard(log_dir=os.path.join(logDir, className, modelName + curTime)),
     ]
 
@@ -101,11 +114,12 @@ def plot_predict(model, testX, testy):
 if __name__ == '__main__':
     X_train, X_test, y_train, y_test = load_dataset2(dataSet, className, augment=augment)
 
-    model = create_model()
+    # model = create_model()
+    model = create_model2()
 
     history, result = train_model(model, X_train, y_train, X_test, y_test)
 
-    saveName = modelName + str(round(result[0],3))+ "_" + curTime + ".h5"
+    saveName = modelName + str(round(result[0], 3)) + "_" + curTime + ".h5"
     model.save(os.path.join(modelPath, className, saveName))
 
     # plot_history(history)
