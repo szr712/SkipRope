@@ -9,6 +9,7 @@ import pandas as pd
 import tensorflow as tf
 import os
 
+from tensorflow.python.keras import regularizers
 from tensorflow.python.keras.metrics import MeanSquaredError
 from tensorflow.python.keras.optimizer_v2.adam import Adam
 from tensorflow.python.keras.optimizer_v2.rmsprop import RMSprop
@@ -33,7 +34,7 @@ def create_model(hp):
     # model.add(LSTM(100))
     # model.add(Dropout(0.5))
     hp_units2 = hp.Int('units2', min_value=32, max_value=512, step=32)
-    model.add(Dense(hp_units2, activation='relu'))
+    model.add(Dense(hp_units2, activation='relu', kernel_regularizer=regularizers.l2(0.01)))
     model.add(Dense(1))
 
     hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
@@ -41,16 +42,28 @@ def create_model(hp):
     model.summary()
     return model
 
+
 def create_model2(hp):
+    """
+
+    两层LSTM，并增加了L2正则项
+    L2正则和dropout的参数也都参与优化
+
+    :param hp:
+    :return:
+    """
     model = Sequential()
     hp_units = hp.Int('units1', min_value=32, max_value=512, step=32)
-    model.add(LSTM(units=hp_units, input_shape=(1200, 10),return_sequences=True))
-    model.add(Dropout(0.5))
+    model.add(LSTM(units=hp_units, input_shape=(1200, 10), return_sequences=True))
+    hp_rate1 = hp.Choice('rate1', values=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+    model.add(Dropout(hp_rate1))
     hp_units2 = hp.Int('units2', min_value=32, max_value=512, step=32)
     model.add(LSTM(units=hp_units2))
-    model.add(Dropout(0.5))
+    hp_rate2 = hp.Choice('rate2', values=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6])
+    model.add(Dropout(hp_rate2))
     hp_units3 = hp.Int('units3', min_value=32, max_value=512, step=32)
-    model.add(Dense(hp_units3, activation='relu'))
+    hp_regular = hp.Choice('regular', values=[1.0, 0.1, 0.01, 0.02, 0.03, 0.009])
+    model.add(Dense(hp_units3, activation='relu', kernel_regularizer=regularizers.l2(hp_regular)))
     model.add(Dense(1))
 
     hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
@@ -61,7 +74,7 @@ def create_model2(hp):
 
 def get_callbacks():
     return [
-        callbacks.EarlyStopping(monitor='mse', patience=10, restore_best_weights=True),
+        callbacks.EarlyStopping(monitor='val_mse', patience=10, restore_best_weights=True),  # 就是需要对验证集的loss监听
         callbacks.TensorBoard(log_dir=os.path.join(logDir, className, curTime)),
     ]
 
@@ -120,18 +133,18 @@ def plot_predict(model, testX, testy):
 
 
 if __name__ == '__main__':
-    X_train, X_test, y_train, y_test = load_dataset2(dataSet, className,augment=True)
+    X_train, X_test, y_train, y_test = load_dataset2(dataSet, className, augment=True)
 
     tuner = kt.Hyperband(create_model2,
                          objective='val_loss',  # 优化的目标
                          max_epochs=200,  # 最大迭代次数
                          factor=3,
-                         directory='./logs/kerasTuner_aug2',
-                         project_name='intro_to_kt')
+                         directory='./logs/kerasTuner_aug3',
+                         project_name='2_LSTM_regular_dropout', hyperband_iterations=2)
 
-    stop_early = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
+    stop_early = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=30)
 
-    tuner.search(X_train, y_train, epochs=50, validation_split=0.2, callbacks=[stop_early])
+    tuner.search(X_train, y_train, epochs=200, validation_split=0.3, callbacks=[stop_early])
 
     best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
 
