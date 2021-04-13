@@ -13,7 +13,7 @@ from tensorflow.python.keras.optimizer_v2.rmsprop import RMSprop
 
 from dataReader import load_dataset, load_dataset2
 
-modelName = "扩容_LSTM双层_"
+modelName = "扩容_LSTM单层_优化参数_"
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 epochs, batch_size = 200, 32
@@ -27,11 +27,11 @@ augment = True
 
 def create_model():
     model = Sequential()
-    model.add(LSTM(160, input_shape=(1200, 10)))
+    model.add(LSTM(352, input_shape=(1200, 10)))
     model.add(Dropout(0.5))
     # model.add(LSTM(100))
     # model.add(Dropout(0.5))
-    model.add(Dense(96, activation='relu'))
+    model.add(Dense(320, activation='relu'))
     model.add(Dense(1))
     model.compile(loss='mse', optimizer=RMSprop(learning_rate=0.001), metrics=['mse', 'mae'])
     model.summary()
@@ -114,8 +114,8 @@ def plot_predict(model, testX, testy):
 if __name__ == '__main__':
     X_train, X_test, y_train, y_test = load_dataset2(dataSet, className, augment=augment)
 
-    # model = create_model()
-    model = create_model2()
+    model = create_model()
+    # model = create_model2()
 
     history, result = train_model(model, X_train, y_train, X_test, y_test)
 

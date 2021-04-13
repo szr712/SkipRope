@@ -41,6 +41,23 @@ def create_model(hp):
     model.summary()
     return model
 
+def create_model2(hp):
+    model = Sequential()
+    hp_units = hp.Int('units1', min_value=32, max_value=512, step=32)
+    model.add(LSTM(units=hp_units, input_shape=(1200, 10),return_sequences=True))
+    model.add(Dropout(0.5))
+    hp_units2 = hp.Int('units2', min_value=32, max_value=512, step=32)
+    model.add(LSTM(units=hp_units2))
+    model.add(Dropout(0.5))
+    hp_units3 = hp.Int('units3', min_value=32, max_value=512, step=32)
+    model.add(Dense(hp_units3, activation='relu'))
+    model.add(Dense(1))
+
+    hp_learning_rate = hp.Choice('learning_rate', values=[1e-2, 1e-3, 1e-4])
+    model.compile(loss='mse', optimizer=RMSprop(learning_rate=hp_learning_rate), metrics=['mse', 'mae'])
+    model.summary()
+    return model
+
 
 def get_callbacks():
     return [
@@ -105,14 +122,14 @@ def plot_predict(model, testX, testy):
 if __name__ == '__main__':
     X_train, X_test, y_train, y_test = load_dataset2(dataSet, className,augment=True)
 
-    tuner = kt.Hyperband(create_model,
+    tuner = kt.Hyperband(create_model2,
                          objective='val_loss',  # 优化的目标
-                         max_epochs=100,  # 最大迭代次数
+                         max_epochs=200,  # 最大迭代次数
                          factor=3,
-                         directory='./logs/kerasTuner_aug',
+                         directory='./logs/kerasTuner_aug2',
                          project_name='intro_to_kt')
 
-    stop_early = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
+    stop_early = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
 
     tuner.search(X_train, y_train, epochs=50, validation_split=0.2, callbacks=[stop_early])
 
